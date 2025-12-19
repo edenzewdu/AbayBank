@@ -1,0 +1,11 @@
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Domain\bin\Debug\net10.0\AbayBank.Domain.deps.json
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Domain\bin\Debug\net10.0\AbayBank.Domain.dll
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Domain\bin\Debug\net10.0\AbayBank.Domain.pdb
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Domain\obj\Debug\net10.0\AbayBank.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Domain\obj\Debug\net10.0\AbayBank.Domain.AssemblyInfoInputs.cache
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Domain\obj\Debug\net10.0\AbayBank.Domain.AssemblyInfo.cs
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Domain\obj\Debug\net10.0\AbayBank.Domain.csproj.CoreCompileInputs.cache
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Domain\obj\Debug\net10.0\AbayBank.Domain.dll
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Domain\obj\Debug\net10.0\refint\AbayBank.Domain.dll
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Domain\obj\Debug\net10.0\AbayBank.Domain.pdb
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Domain\obj\Debug\net10.0\ref\AbayBank.Domain.dll

@@ -1,0 +1,6 @@
+@AbayBank.API_HostAddress = http://localhost:5052
+
+GET {{AbayBank.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

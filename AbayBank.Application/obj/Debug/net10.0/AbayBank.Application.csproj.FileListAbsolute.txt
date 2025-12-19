@@ -1,0 +1,15 @@
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\bin\Debug\net10.0\AbayBank.Application.deps.json
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\bin\Debug\net10.0\AbayBank.Application.dll
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\bin\Debug\net10.0\AbayBank.Application.pdb
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\bin\Debug\net10.0\AbayBank.Domain.dll
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\bin\Debug\net10.0\AbayBank.Domain.pdb
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\obj\Debug\net10.0\AbayBank.Application.csproj.AssemblyReference.cache
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\obj\Debug\net10.0\AbayBank.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\obj\Debug\net10.0\AbayBank.Application.AssemblyInfoInputs.cache
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\obj\Debug\net10.0\AbayBank.Application.AssemblyInfo.cs
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\obj\Debug\net10.0\AbayBank.Application.csproj.CoreCompileInputs.cache
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\obj\Debug\net10.0\AbayBank.C7CFDEC5.Up2Date
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\obj\Debug\net10.0\AbayBank.Application.dll
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\obj\Debug\net10.0\refint\AbayBank.Application.dll
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\obj\Debug\net10.0\AbayBank.Application.pdb
+C:\Users\HP\OneDrive\Desktop\MKC\New folder\AbayBank\AbayBank.Application\obj\Debug\net10.0\ref\AbayBank.Application.dll

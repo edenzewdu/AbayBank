@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="AbayBank.API/AbayBank.API.csproj" />
+  <Project Path="AbayBank.Application/AbayBank.Application.csproj" />
+  <Project Path="AbayBank.Domain/AbayBank.Domain.csproj" />
+  <Project Path="AbayBank.Infrastructure/AbayBank.Infrastructure.csproj" />
+  <Project Path="AbayBank.Persistence/AbayBank.Persistence.csproj" />
+</Solution>
