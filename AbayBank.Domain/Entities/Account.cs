@@ -1,35 +1,38 @@
 using AbayBank.Domain.Enums;
 using AbayBank.Domain.Exceptions;
-using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace AbayBank.Domain.Entities;
 
-public class Account
+public class Account : BaseEntity
 {
-    public Guid Id { get; private set; }
+    [Required]
     public string AccountNumber { get; private set; }
+
     public decimal Balance { get; private set; }
+
     public AccountStatus Status { get; private set; }
+
+    public AccountType AccountType { get; private set; }
+
     public Guid UserId { get; private set; }
-    public DateTime CreatedAt { get; private set; }
-    public DateTime? UpdatedAt { get; private set; }
-    private readonly List<Transaction> _transactions = new List<Transaction>();
+    
+    private readonly List<Transaction> _transactions = new();
     public IReadOnlyCollection<Transaction> Transactions => _transactions.AsReadOnly();
 
-    private Account() { }
-
-    public Account(string accountNumber, Guid userId, decimal initialBalance = 0)
+    // Private constructor for EF Core
+    private Account() 
     {
-        if (string.IsNullOrWhiteSpace(accountNumber))
-            throw new InvalidAccountOperationException("Account number is required.");
+        AccountNumber = string.Empty;
+    }
 
-        if (initialBalance < 0)
-            throw new InvalidAccountOperationException("Initial balance cannot be negative.");
-
+    public Account(string accountNumber, Guid userId, AccountType accountType = AccountType.Savings, decimal initialBalance = 0)
+    {
         Id = Guid.NewGuid();
-        AccountNumber = accountNumber;
+        AccountNumber = accountNumber ?? throw new ArgumentNullException(nameof(accountNumber));
         UserId = userId;
-        Balance = initialBalance;
+        AccountType = accountType;
+        Balance = initialBalance >= 0 ? initialBalance : throw new InvalidAccountOperationException("Initial balance cannot be negative.");
         Status = AccountStatus.Active;
         CreatedAt = DateTime.UtcNow;
     }
@@ -38,14 +41,14 @@ public class Account
     {
         if (Status != AccountStatus.Active)
             throw new InvalidAccountOperationException("Account is not active.");
-
+        
         if (amount <= 0)
             throw new InvalidAccountOperationException("Deposit amount must be greater than zero.");
 
         Balance += amount;
         UpdatedAt = DateTime.UtcNow;
         
-        var transaction = new Transaction(Id, null, "Deposit", amount, description);
+        var transaction = new Transaction(Id, TransactionType.Deposit.ToString(), amount, description);
         _transactions.Add(transaction);
         
         return transaction;
@@ -55,7 +58,7 @@ public class Account
     {
         if (Status != AccountStatus.Active)
             throw new InvalidAccountOperationException("Account is not active.");
-
+        
         if (amount <= 0)
             throw new InvalidAccountOperationException("Withdrawal amount must be greater than zero.");
 
@@ -65,7 +68,7 @@ public class Account
         Balance -= amount;
         UpdatedAt = DateTime.UtcNow;
         
-        var transaction = new Transaction(Id, null, "Withdraw", amount, description);
+        var transaction = new Transaction(Id, TransactionType.Withdraw.ToString(), amount, description);
         _transactions.Add(transaction);
         
         return transaction;
@@ -76,32 +79,43 @@ public class Account
     {
         if (Status != AccountStatus.Active)
             throw new InvalidAccountOperationException("Source account is not active.");
-
+        
         if (toAccount.Status != AccountStatus.Active)
             throw new InvalidAccountOperationException("Destination account is not active.");
-
+        
         if (amount <= 0)
             throw new InvalidAccountOperationException("Transfer amount must be greater than zero.");
-
+        
         if (amount > Balance)
             throw new InsufficientBalanceException();
-
+        
         if (Id == toAccount.Id)
             throw new InvalidAccountOperationException("Cannot transfer to the same account.");
 
         // Withdraw from this account
         Balance -= amount;
-        var fromTransaction = new Transaction(Id, toAccount.Id, "Transfer_Out", amount, 
-                                            $"Transfer to {toAccount.AccountNumber}: {description}");
+        var fromTransaction = new Transaction(
+            Id, 
+            TransactionType.TransferOut.ToString(), 
+            amount, 
+            $"Transfer to {toAccount.AccountNumber}: {description}")
+        {
+            RelatedAccountId = toAccount.Id
+        };
+        _transactions.Add(fromTransaction);
 
         // Deposit to destination account
         toAccount.Balance += amount;
-        var toTransaction = new Transaction(toAccount.Id, Id, "Transfer_In", amount, 
-                                          $"Transfer from {AccountNumber}: {description}");
-
-        _transactions.Add(fromTransaction);
+        var toTransaction = new Transaction(
+            toAccount.Id,
+            TransactionType.TransferIn.ToString(),
+            amount,
+            $"Transfer from {AccountNumber}: {description}")
+        {
+            RelatedAccountId = Id
+        };
         toAccount._transactions.Add(toTransaction);
-        
+
         UpdatedAt = DateTime.UtcNow;
         toAccount.UpdatedAt = DateTime.UtcNow;
 
@@ -116,8 +130,11 @@ public class Account
         Status = AccountStatus.Frozen;
         UpdatedAt = DateTime.UtcNow;
         
-        _transactions.Add(new Transaction(Id, null, "Account_Frozen", 0, 
-                                        $"Account frozen. Reason: {reason}"));
+        _transactions.Add(new Transaction(
+            Id, 
+            TransactionType.AccountFrozen.ToString(), 
+            0, 
+            $"Account frozen. Reason: {reason}"));
     }
 
     public void Unfreeze()
@@ -128,7 +145,11 @@ public class Account
         Status = AccountStatus.Active;
         UpdatedAt = DateTime.UtcNow;
         
-        _transactions.Add(new Transaction(Id, null, "Account_Unfrozen", 0, "Account unfrozen"));
+        _transactions.Add(new Transaction(
+            Id, 
+            TransactionType.AccountUnfrozen.ToString(), 
+            0, 
+            "Account unfrozen"));
     }
 
     public void Close()
@@ -142,6 +163,16 @@ public class Account
         Status = AccountStatus.Closed;
         UpdatedAt = DateTime.UtcNow;
         
-        _transactions.Add(new Transaction(Id, null, "Account_Closed", 0, "Account closed"));
+        _transactions.Add(new Transaction(
+            Id, 
+            TransactionType.AccountClosed.ToString(), 
+            0, 
+            "Account closed"));
+    }
+
+    public void UpdateAccountType(AccountType newType)
+    {
+        AccountType = newType;
+        UpdatedAt = DateTime.UtcNow;
     }
 }

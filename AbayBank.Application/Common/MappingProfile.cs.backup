@@ -1,0 +1,22 @@
+using AbayBank.Application.DTOs;
+using AbayBank.Domain.Entities;
+using AutoMapper;
+
+namespace AbayBank.Application.Common;
+
+public class MappingProfile : Profile
+{
+    public MappingProfile()
+    {
+        // Account mappings
+        CreateMap<Account, AccountDto>()
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
+            .ForMember(dest => dest.AccountType, opt => opt.MapFrom(src => src.AccountType));
+
+        // Transaction mappings
+        CreateMap<Transaction, TransactionDto>();
+
+        // User mappings (if you have UserDto)
+        // CreateMap<User, UserDto>();
+    }
+}

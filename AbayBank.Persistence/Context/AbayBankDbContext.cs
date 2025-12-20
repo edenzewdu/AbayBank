@@ -12,52 +12,49 @@ public class AbayBankDbContext : DbContext
 
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
+    public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
-{
-    modelBuilder.Entity<Account>(entity =>
     {
-        entity.Property(e => e.Id)
-            .HasColumnType("char(36)") // MySQL stores Guid as char(36)
-            .IsRequired();
+        base.OnModelCreating(modelBuilder);
 
-        entity.Property(e => e.AccountNumber)
-            .HasColumnType("varchar(20)")
-            .IsRequired();
+        modelBuilder.Entity<Account>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            entity.Property(e => e.AccountNumber)
+                .IsRequired()
+                .HasMaxLength(20);
 
-        entity.Property(e => e.Balance)
-            .HasColumnType("decimal(18,2)")
-            .IsRequired();
+            entity.Property(e => e.Balance)
+                .HasColumnType("decimal(18,2)");
 
-        entity.Property(e => e.Status)
-            .HasColumnType("int")
-            .IsRequired();
-    });
+            entity.HasIndex(e => e.AccountNumber).IsUnique();
+        });
 
-    modelBuilder.Entity<Transaction>(entity =>
-    {
-        entity.Property(e => e.Id)
-            .HasColumnType("char(36)")
-            .IsRequired();
+        modelBuilder.Entity<Transaction>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            entity.Property(e => e.Amount)
+                .HasColumnType("decimal(18,2)");
 
-        entity.Property(e => e.AccountId)
-            .HasColumnType("char(36)")
-            .IsRequired();
+            entity.Property(e => e.ReferenceNumber)
+                .IsRequired()
+                .HasMaxLength(50);
 
-        entity.Property(e => e.Amount)
-            .HasColumnType("decimal(18,2)")
-            .IsRequired();
+            entity.HasIndex(e => e.ReferenceNumber).IsUnique();
+        });
 
-        entity.Property(e => e.Type)
-            .HasColumnType("int")
-            .IsRequired();
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            entity.Property(e => e.Email)
+                .IsRequired()
+                .HasMaxLength(100);
 
-        entity.Property(e => e.CreatedAt)
-            .HasColumnType("datetime")
-            .IsRequired();
-    });
-
-    base.OnModelCreating(modelBuilder);
-}
-
+            entity.HasIndex(e => e.Email).IsUnique();
+        });
+    }
 }

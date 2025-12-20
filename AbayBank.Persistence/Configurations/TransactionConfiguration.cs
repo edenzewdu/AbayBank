@@ -21,7 +21,7 @@ namespace AbayBank.Persistence.Configurations
                    .HasColumnType("decimal(18,2)")
                    .IsRequired();
 
-            builder.Property(t => t.Type)
+            builder.Property(t => t.TransactionType)
                    .HasConversion<int>()
                    .IsRequired();
 
