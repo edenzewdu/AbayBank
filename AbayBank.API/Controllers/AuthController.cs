@@ -1,86 +1,166 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using System.ComponentModel.DataAnnotations;
+using AbayBank.Application.DTOs;
 using AbayBank.Application.Interfaces;
-using AbayBank.Application.DTOs; 
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
-namespace AbayBank.API.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-public class AuthController : ControllerBase
+namespace AbayBank.API.Controllers
 {
-    private readonly IUserService _userService;
-
-    public AuthController(IUserService userService)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class AuthController : ControllerBase
     {
-        _userService = userService;
-    }
+        private readonly ILogger<AuthController> _logger;
+        private readonly IUserService _userService;
 
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
-    {
-        // Your implementation
-        var result = await _userService.RegisterAsync(request);
-        if (!result.Success)
-            return BadRequest(result);
-        
-        return Ok(result);
-    }
+        // Only ONE constructor with ALL dependencies
+        public AuthController(ILogger<AuthController> logger, IUserService userService)
+        {
+            _logger = logger;
+            _userService = userService;
+        }
 
-    [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
-    {
-        // Your implementation
-        var result = await _userService.LoginAsync(request);
-        if (!result.Success)
-            return Unauthorized(result);
-        
-        return Ok(result);
-    }
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+        {
+            try
+            {
+                // Validate model state
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new
+                    {
+                        Success = false,
+                        Data = (string)null,
+                        Message = "Invalid request data",
+                        Errors = ModelState.Values
+                            .SelectMany(v => v.Errors)
+                            .Select(e => e.ErrorMessage)
+                            .ToList()
+                    });
+                }
 
-    [Authorize]
-    [HttpGet("profile")]
-    public async Task<IActionResult> GetProfile()
-    {
-        // Your implementation
-        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized();
-        
-        var user = await _userService.GetUserByIdAsync(Guid.Parse(userId));
-        return Ok(user);
-    }
+                var result = await _userService.RegisterAsync(request);
+                
+                if (!result.Success)
+                {
+                    // Return the same structure as the error you're seeing
+                    return BadRequest(new
+                    {
+                        Success = false,
+                        Data = (string)null,
+                        Message = "Registration failed",
+                        Errors = result.Errors ?? new List<string>()
+                    });
+                }
+                
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception here (using ILogger)
+                _logger.LogError(ex, "Error during registration");
+                
+                return BadRequest(new
+                {
+                    Success = false,
+                    Data = (string)null,
+                    Message = "An error occurred during registration",
+                    Errors = new List<string> { ex.Message }
+                });
+            }
+        }
 
-    // Add DTO classes if they don't exist elsewhere
-    public class RegisterRequest
-    {
-        [Required]
-        public string FirstName { get; set; } = string.Empty;
-        
-        [Required]
-        public string LastName { get; set; } = string.Empty;
-        
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = string.Empty;
-        
-        [Required]
-        [MinLength(6)]
-        public string Password { get; set; } = string.Empty;
-        
-        [Required]
-        [Compare("Password")]
-        public string ConfirmPassword { get; set; } = string.Empty;
-    }
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        {
+            try
+            {
+                // Validate model state
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new
+                    {
+                        Success = false,
+                        Data = (string)null,
+                        Message = "Invalid request data",
+                        Errors = ModelState.Values
+                            .SelectMany(v => v.Errors)
+                            .Select(e => e.ErrorMessage)
+                            .ToList()
+                    });
+                }
 
-    public class LoginRequest
-    {
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = string.Empty;
-        
-        [Required]
-        public string Password { get; set; } = string.Empty;
+                var result = await _userService.LoginAsync(request);
+                
+                if (!result.Success)
+                {
+                    return Unauthorized(new
+                    {
+                        Success = false,
+                        Data = (string)null,
+                        Message = result.Message,
+                        Errors = result.Errors ?? new List<string>()
+                    });
+                }
+                
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during login");
+                return BadRequest(new
+                {
+                    Success = false,
+                    Data = (string)null,
+                    Message = "An error occurred during login",
+                    Errors = new List<string> { ex.Message }
+                });
+            }
+        }
+
+        [Authorize]
+        [HttpGet("profile")]
+        public async Task<IActionResult> GetProfile()
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim?.Value))
+                    return Unauthorized(new
+                    {
+                        Success = false,
+                        Data = (string)null,
+                        Message = "User not authenticated"
+                    });
+                
+                var user = await _userService.GetUserByIdAsync(Guid.Parse(userIdClaim.Value));
+                if (user == null)
+                    return NotFound(new
+                    {
+                        Success = false,
+                        Data = (string)null,
+                        Message = "User not found"
+                    });
+                
+                return Ok(new
+                {
+                    Success = true,
+                    Data = user,
+                    Message = "Profile retrieved successfully"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user profile");
+                return BadRequest(new
+                {
+                    Success = false,
+                    Data = (string)null,
+                    Message = "An error occurred while retrieving profile",
+                    Errors = new List<string> { ex.Message }
+                });
+            }
+        }
     }
 }

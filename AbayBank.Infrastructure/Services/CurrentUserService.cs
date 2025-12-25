@@ -1,10 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
-using AbayBank.Application.Common.Interfaces;
+using AbayBank.Application.Interfaces;
 
 namespace AbayBank.Infrastructure.Services;
 
-public class CurrentUserService : ICurrentUserService
+public class CurrentUserService : ICurrentUserService  // Changed from IUserService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
 
@@ -40,10 +40,21 @@ public class CurrentUserService : ICurrentUserService
             .IsInRole("Admin") ?? false;
     }
 
+    public bool IsInRole(string role)
+    {
+        return _httpContextAccessor.HttpContext?.User?
+            .IsInRole(role) ?? false;
+    }
+
     public IEnumerable<string> GetUserRoles()
     {
         return _httpContextAccessor.HttpContext?.User?
             .FindAll(ClaimTypes.Role)
             .Select(c => c.Value) ?? Enumerable.Empty<string>();
+    }
+
+    public ClaimsPrincipal? GetCurrentUser()
+    {
+        return _httpContextAccessor.HttpContext?.User;
     }
 }

@@ -1,9 +1,8 @@
 using AbayBank.Application.DTOs;
-using AbayBank.Application.Exceptions;
 using AbayBank.Application.Interfaces;
 using AbayBank.Domain.Entities;
-using AbayBank.Domain.Enums;
 using AbayBank.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace AbayBank.Application.Services;
 
@@ -13,218 +12,344 @@ public class AccountService : IAccountService
     private readonly ITransactionRepository _transactionRepository;
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<AccountService> _logger;
 
     public AccountService(
         IAccountRepository accountRepository,
         ITransactionRepository transactionRepository,
         IUserRepository userRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<AccountService> logger)
     {
         _accountRepository = accountRepository;
         _transactionRepository = transactionRepository;
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<AccountDto> GetAccountByIdAsync(Guid id)
     {
-        var account = await _accountRepository.GetByIdAsync(id)
-            ?? throw new NotFoundException($"Account with ID {id} not found.");
-        
-        return MapToDto(account);
+        try
+        {
+            var account = await _accountRepository.GetByIdAsync(id)
+                ?? throw new KeyNotFoundException($"Account with ID {id} not found.");
+            
+            return MapToDto(account);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting account by ID {Id}", id);
+            throw;
+        }
     }
 
     public async Task<AccountDto> GetAccountByNumberAsync(string accountNumber)
     {
-        var account = await _accountRepository.GetByAccountNumberAsync(accountNumber)
-            ?? throw new NotFoundException($"Account {accountNumber} not found.");
-        
-        return MapToDto(account);
+        try
+        {
+            var account = await _accountRepository.GetByAccountNumberAsync(accountNumber)
+                ?? throw new KeyNotFoundException($"Account {accountNumber} not found.");
+            
+            return MapToDto(account);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting account by number {AccountNumber}", accountNumber);
+            throw;
+        }
     }
 
     public async Task<IEnumerable<AccountDto>> GetUserAccountsAsync(Guid userId)
     {
-        var accounts = await _accountRepository.GetByUserIdAsync(userId);
-        return accounts.Select(MapToDto);
+        try
+        {
+            var accounts = await _accountRepository.GetByUserIdAsync(userId);
+            return accounts.Select(MapToDto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting user accounts for user {UserId}", userId);
+            throw;
+        }
     }
 
     public async Task<AccountDto> CreateAccountAsync(CreateAccountRequest request, Guid userId)
     {
-        var user = await _userRepository.GetByIdAsync(userId)
-            ?? throw new NotFoundException($"User with ID {userId} not found.");
-
-        var existingAccount = await _accountRepository.GetByAccountNumberAsync(request.AccountNumber);
-        if (existingAccount != null)
+        try
         {
-            throw new AppException($"Account number {request.AccountNumber} already exists.");
+            var user = await _userRepository.GetByIdAsync(userId)
+                ?? throw new KeyNotFoundException($"User with ID {userId} not found.");
+
+            var existingAccount = await _accountRepository.GetByAccountNumberAsync(request.AccountNumber);
+            if (existingAccount != null)
+            {
+                throw new ArgumentException($"Account number {request.AccountNumber} already exists.");
+            }
+
+            var account = new Account(
+                request.AccountNumber,
+                userId,
+                request.AccountType,
+                request.InitialBalance);
+
+            await _accountRepository.AddAsync(account);
+            await _unitOfWork.SaveChangesAsync();
+
+            return MapToDto(account);
         }
-
-        var account = new Account(
-            request.AccountNumber,
-            userId,
-            request.AccountType,
-            request.InitialBalance);
-
-        await _accountRepository.AddAsync(account);
-        await _unitOfWork.SaveChangesAsync();
-
-        return MapToDto(account);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating account");
+            throw;
+        }
     }
 
     public async Task<AccountDto> UpdateAccountAsync(Guid id, UpdateAccountRequest request)
     {
-        var account = await _accountRepository.GetByIdAsync(id)
-            ?? throw new NotFoundException($"Account with ID {id} not found.");
-
-        if (request.AccountType.HasValue)
+        try
         {
-            account.UpdateAccountType(request.AccountType.Value);
+            var account = await _accountRepository.GetByIdAsync(id)
+                ?? throw new KeyNotFoundException($"Account with ID {id} not found.");
+
+            if (request.AccountType.HasValue)
+            {
+                account.UpdateAccountType(request.AccountType.Value);
+            }
+
+            if (request.Status.HasValue)
+            {
+                switch (request.Status.Value)
+                {
+                    case Domain.Enums.AccountStatus.Active:
+                        account.Unfreeze();
+                        break;
+                    case Domain.Enums.AccountStatus.Frozen:
+                        account.Freeze("Updated via API");
+                        break;
+                    case Domain.Enums.AccountStatus.Closed:
+                        account.Close();
+                        break;
+                }
+            }
+
+            await _accountRepository.UpdateAsync(account);
+            await _unitOfWork.SaveChangesAsync();
+
+            return MapToDto(account);
         }
-
-        await _accountRepository.UpdateAsync(account);
-        await _unitOfWork.SaveChangesAsync();
-
-        return MapToDto(account);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating account {Id}", id);
+            throw;
+        }
     }
 
     public async Task DeleteAccountAsync(Guid id)
     {
-        var account = await _accountRepository.GetByIdAsync(id)
-            ?? throw new NotFoundException($"Account with ID {id} not found.");
-
-        if (account.Balance > 0)
+        try
         {
-            throw new AppException("Cannot delete account with balance.");
-        }
+            var account = await _accountRepository.GetByIdAsync(id)
+                ?? throw new KeyNotFoundException($"Account with ID {id} not found.");
 
-        await _accountRepository.DeleteAsync(account);
-        await _unitOfWork.SaveChangesAsync();
+            if (account.Balance > 0)
+            {
+                throw new InvalidOperationException("Cannot delete account with balance.");
+            }
+
+            await _accountRepository.DeleteAsync(account);
+            await _unitOfWork.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting account {Id}", id);
+            throw;
+        }
     }
 
     public async Task<TransactionDto> DepositAsync(DepositRequest request)
     {
-        var account = await _accountRepository.GetByAccountNumberAsync(request.AccountNumber)
-            ?? throw new NotFoundException($"Account {request.AccountNumber} not found.");
-
-        if (!ValidatePin(request.Pin))
+        try
         {
-            throw new AppException("Invalid PIN");
+            var account = await _accountRepository.GetByAccountNumberAsync(request.AccountNumber)
+                ?? throw new KeyNotFoundException($"Account {request.AccountNumber} not found.");
+
+            if (!ValidatePin(request.Pin))
+            {
+                throw new ArgumentException("Invalid PIN");
+            }
+
+            var tx = account.Deposit(request.Amount, request.Description ?? "Deposit");
+            
+            await _accountRepository.UpdateAsync(account);
+            await _transactionRepository.AddAsync(tx);
+            await _unitOfWork.SaveChangesAsync();
+
+            return MapToTransactionDto(tx);
         }
-
-        var transaction = account.Deposit(request.Amount, request.Description);
-        
-        await _accountRepository.UpdateAsync(account);
-        await _transactionRepository.AddAsync(transaction);
-        await _unitOfWork.SaveChangesAsync();
-
-        return MapToTransactionDto(transaction);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error depositing to account {AccountNumber}", request.AccountNumber);
+            throw;
+        }
     }
 
     public async Task<TransactionDto> WithdrawAsync(WithdrawRequest request)
     {
-        var account = await _accountRepository.GetByAccountNumberAsync(request.AccountNumber)
-            ?? throw new NotFoundException($"Account {request.AccountNumber} not found.");
-
-        if (!ValidatePin(request.Pin))
+        try
         {
-            throw new AppException("Invalid PIN");
+            var account = await _accountRepository.GetByAccountNumberAsync(request.AccountNumber)
+                ?? throw new KeyNotFoundException($"Account {request.AccountNumber} not found.");
+
+            if (!ValidatePin(request.Pin))
+            {
+                throw new ArgumentException("Invalid PIN");
+            }
+
+            var tx = account.Withdraw(request.Amount, request.Description ?? "Withdrawal");
+            
+            await _accountRepository.UpdateAsync(account);
+            await _transactionRepository.AddAsync(tx);
+            await _unitOfWork.SaveChangesAsync();
+
+            return MapToTransactionDto(tx);
         }
-
-        var transaction = account.Withdraw(request.Amount, request.Description);
-        
-        await _accountRepository.UpdateAsync(account);
-        await _transactionRepository.AddAsync(transaction);
-        await _unitOfWork.SaveChangesAsync();
-
-        return MapToTransactionDto(transaction);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error withdrawing from account {AccountNumber}", request.AccountNumber);
+            throw;
+        }
     }
 
     public async Task<TransferResultDto> TransferAsync(TransferRequest request)
     {
-        var fromAccount = await _accountRepository.GetByIdAsync(request.FromAccountId)
-            ?? throw new NotFoundException($"Source account not found.");
-
-        var toAccount = await _accountRepository.GetByAccountNumberAsync(request.ToAccountNumber)
-            ?? throw new NotFoundException($"Destination account {request.ToAccountNumber} not found.");
-
-        if (!ValidatePin(request.Pin))
+        try
         {
-            throw new AppException("Invalid PIN");
+            var fromAccount = await _accountRepository.GetByIdAsync(request.FromAccountId)
+                ?? throw new KeyNotFoundException($"Source account not found.");
+
+            var toAccount = await _accountRepository.GetByAccountNumberAsync(request.ToAccountNumber)
+                ?? throw new KeyNotFoundException($"Destination account {request.ToAccountNumber} not found.");
+
+            if (!ValidatePin(request.Pin))
+            {
+                throw new ArgumentException("Invalid PIN");
+            }
+
+            var (fromTransaction, toTransaction) = fromAccount.Transfer(
+                toAccount, request.Amount, request.Description);
+            
+            await _accountRepository.UpdateAsync(fromAccount);
+            await _accountRepository.UpdateAsync(toAccount);
+            await _transactionRepository.AddAsync(fromTransaction);
+            await _transactionRepository.AddAsync(toTransaction);
+            await _unitOfWork.SaveChangesAsync();
+
+            return new TransferResultDto
+            {
+                FromTransaction = MapToTransactionDto(fromTransaction),
+                ToTransaction = MapToTransactionDto(toTransaction),
+                NewBalance = fromAccount.Balance
+            };
         }
-
-        var (fromTransaction, toTransaction) = fromAccount.Transfer(
-            toAccount, request.Amount, request.Description);
-        
-        await _accountRepository.UpdateAsync(fromAccount);
-        await _accountRepository.UpdateAsync(toAccount);
-        await _transactionRepository.AddAsync(fromTransaction);
-        await _transactionRepository.AddAsync(toTransaction);
-        await _unitOfWork.SaveChangesAsync();
-
-        return new TransferResultDto
+        catch (Exception ex)
         {
-            FromTransaction = MapToTransactionDto(fromTransaction),
-            ToTransaction = MapToTransactionDto(toTransaction),
-            NewBalance = fromAccount.Balance
-        };
+            _logger.LogError(ex, "Error transferring from account {FromAccountId} to {ToAccountNumber}", 
+                request.FromAccountId, request.ToAccountNumber);
+            throw;
+        }
     }
 
     public async Task<IEnumerable<TransactionDto>> GetTransactionsAsync(Guid accountId, DateTime? from, DateTime? to)
     {
-        var account = await _accountRepository.GetByIdAsync(accountId)
-            ?? throw new NotFoundException($"Account not found.");
+        try
+        {
+            var account = await _accountRepository.GetByIdAsync(accountId)
+                ?? throw new KeyNotFoundException($"Account not found.");
 
-        var transactions = await _transactionRepository.GetByAccountIdAsync(
-            accountId, 
-            from ?? DateTime.UtcNow.AddDays(-30),
-            to ?? DateTime.UtcNow);
+            var transactions = await _transactionRepository.GetByAccountIdAsync(
+                accountId, 
+                from ?? DateTime.UtcNow.AddDays(-30),
+                to ?? DateTime.UtcNow);
 
-        return transactions.Select(MapToTransactionDto);
+            return transactions.Select(MapToTransactionDto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting transactions for account {AccountId}", accountId);
+            throw;
+        }
     }
 
     public async Task<IEnumerable<TransactionDto>> GetAccountTransactionsAsync(Guid accountId, TransactionQuery query)
     {
-        var account = await _accountRepository.GetByIdAsync(accountId)
-            ?? throw new NotFoundException($"Account not found.");
+        try
+        {
+            var account = await _accountRepository.GetByIdAsync(accountId)
+                ?? throw new KeyNotFoundException($"Account not found.");
 
-        var transactions = await _transactionRepository.GetByAccountIdWithPagingAsync(
-            accountId, 
-            query.FromDate ?? DateTime.UtcNow.AddDays(-30),
-            query.ToDate ?? DateTime.UtcNow,
-            query.TransactionType,
-            query.Page,
-            query.PageSize);
+            var transactions = await _transactionRepository.GetByAccountIdWithPagingAsync(
+                accountId, 
+                query.FromDate ?? DateTime.UtcNow.AddDays(-30),
+                query.ToDate ?? DateTime.UtcNow,
+                query.TransactionType,
+                query.Page,
+                query.PageSize);
 
-        return transactions.Select(MapToTransactionDto);
+            return transactions.Select(MapToTransactionDto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting transactions for account {AccountId}", accountId);
+            throw;
+        }
     }
 
     public async Task<AccountDto> FreezeAccountAsync(Guid accountId, string reason)
     {
-        var account = await _accountRepository.GetByIdAsync(accountId)
-            ?? throw new NotFoundException($"Account not found.");
+        try
+        {
+            var account = await _accountRepository.GetByIdAsync(accountId)
+                ?? throw new KeyNotFoundException($"Account not found.");
 
-        account.Freeze(reason);
-        await _accountRepository.UpdateAsync(account);
-        await _unitOfWork.SaveChangesAsync();
+            account.Freeze(reason);
+            await _accountRepository.UpdateAsync(account);
+            await _unitOfWork.SaveChangesAsync();
 
-        return MapToDto(account);
+            return MapToDto(account);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error freezing account {AccountId}", accountId);
+            throw;
+        }
     }
 
     public async Task<AccountDto> UnfreezeAccountAsync(Guid accountId)
     {
-        var account = await _accountRepository.GetByIdAsync(accountId)
-            ?? throw new NotFoundException($"Account not found.");
+        try
+        {
+            var account = await _accountRepository.GetByIdAsync(accountId)
+                ?? throw new KeyNotFoundException($"Account not found.");
 
-        account.Unfreeze();
-        await _accountRepository.UpdateAsync(account);
-        await _unitOfWork.SaveChangesAsync();
+            account.Unfreeze();
+            await _accountRepository.UpdateAsync(account);
+            await _unitOfWork.SaveChangesAsync();
 
-        return MapToDto(account);
+            return MapToDto(account);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error unfreezing account {AccountId}", accountId);
+            throw;
+        }
     }
 
     private bool ValidatePin(string? pin)
     {
-        return !string.IsNullOrEmpty(pin) && pin.Length == 4 && pin.All(char.IsDigit);
+        return !string.IsNullOrEmpty(pin) && 
+               pin.Length == 4 && 
+               pin.All(char.IsDigit);
     }
 
     private AccountDto MapToDto(Account account)
@@ -234,8 +359,8 @@ public class AccountService : IAccountService
             Id = account.Id,
             AccountNumber = account.AccountNumber,
             Balance = account.Balance,
-            Status = account.Status,
-            AccountType = account.AccountType,
+            Status = account.Status.ToString(),
+            AccountType = account.AccountType.ToString(),
             UserId = account.UserId,
             CreatedAt = account.CreatedAt,
             UpdatedAt = account.UpdatedAt

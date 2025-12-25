@@ -1,60 +1,30 @@
-using AbayBank.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using AbayBank.Domain.Entities;
 
-namespace AbayBank.Persistence.Context;
-
-public class AbayBankDbContext : DbContext
+namespace AbayBank.Persistence.Context
 {
-    public AbayBankDbContext(DbContextOptions<AbayBankDbContext> options)
-        : base(options)
+    public class AbayBankDbContext : DbContext
     {
-    }
-
-    public DbSet<Account> Accounts => Set<Account>();
-    public DbSet<Transaction> Transactions => Set<Transaction>();
-    public DbSet<User> Users => Set<User>();
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        base.OnModelCreating(modelBuilder);
-
-        modelBuilder.Entity<Account>(entity =>
+        public AbayBankDbContext(DbContextOptions<AbayBankDbContext> options)
+            : base(options)
         {
-            entity.HasKey(e => e.Id);
-            
-            entity.Property(e => e.AccountNumber)
-                .IsRequired()
-                .HasMaxLength(20);
+        }
 
-            entity.Property(e => e.Balance)
-                .HasColumnType("decimal(18,2)");
-
-            entity.HasIndex(e => e.AccountNumber).IsUnique();
-        });
-
-        modelBuilder.Entity<Transaction>(entity =>
+        // Add parameterless constructor for design-time
+        protected AbayBankDbContext()
         {
-            entity.HasKey(e => e.Id);
-            
-            entity.Property(e => e.Amount)
-                .HasColumnType("decimal(18,2)");
+        }
 
-            entity.Property(e => e.ReferenceNumber)
-                .IsRequired()
-                .HasMaxLength(50);
+        public DbSet<User> Users { get; set; }
+        public DbSet<Account> Accounts { get; set; }
+        public DbSet<Transaction> Transactions { get; set; }
 
-            entity.HasIndex(e => e.ReferenceNumber).IsUnique();
-        });
-
-        modelBuilder.Entity<User>(entity =>
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            entity.HasKey(e => e.Id);
+            base.OnModelCreating(modelBuilder);
             
-            entity.Property(e => e.Email)
-                .IsRequired()
-                .HasMaxLength(100);
-
-            entity.HasIndex(e => e.Email).IsUnique();
-        });
+            // Configure entity mappings here
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(AbayBankDbContext).Assembly);
+        }
     }
 }

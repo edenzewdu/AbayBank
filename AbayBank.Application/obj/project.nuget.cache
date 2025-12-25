@@ -1,8 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "VRkvvaXSm7s=",
+  "dgSpecHash": "Ij4PGTLA1k8=",
   "success": true,
   "projectFilePath": "C:\\Users\\HP\\OneDrive\\Desktop\\MKC\\New folder\\AbayBank\\AbayBank.Application\\AbayBank.Application.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "C:\\Users\\HP\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\9.0.0\\microsoft.extensions.dependencyinjection.abstractions.9.0.0.nupkg.sha512",
+    "C:\\Users\\HP\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\9.0.0\\microsoft.extensions.logging.abstractions.9.0.0.nupkg.sha512"
+  ],
   "logs": []
 }

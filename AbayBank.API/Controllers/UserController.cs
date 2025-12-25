@@ -1,133 +1,141 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using System.ComponentModel.DataAnnotations;
+using AbayBank.Application.DTOs;
 using AbayBank.Application.Interfaces;
-using AbayBank.Application.DTOs; 
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
-namespace AbayBank.API.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-[Authorize]
-public class UserController : ControllerBase
+namespace AbayBank.API.Controllers
 {
-    private readonly IUserService _userService;
-
-    public UserController(IUserService userService)
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
+    public class UserController : ControllerBase
     {
-        _userService = userService;
-    }
+        private readonly IUserService _userService;
 
-    [HttpGet]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetUsers([FromQuery] UserQuery query)
-    {
-        var users = await _userService.GetUsersAsync(query);
-        return Ok(users);
-    }
+        public UserController(IUserService userService)
+        {
+            _userService = userService;
+        }
 
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetUser(Guid id)
-    {
-        var user = await _userService.GetUserByIdAsync(id);
-        if (user == null)
-            return NotFound();
-        
-        return Ok(user);
-    }
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUsers([FromQuery] UserQuery query)
+        {
+            try
+            {
+                var users = await _userService.GetUsersAsync(query);
+                return Ok(new ApiResponse<IEnumerable<UserDto>>(true, "Users retrieved", users));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse<string>(false, ex.Message));
+            }
+        }
 
-    [HttpPost]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
-    {
-        var result = await _userService.CreateUserAsync(request);
-        if (!result.Success)
-            return BadRequest(result);
-        
-        return CreatedAtAction(nameof(GetUser), new { id = result.Data?.Id }, result);
-    }
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetUser(Guid id)
+        {
+            try
+            {
+                var user = await _userService.GetUserByIdAsync(id);
+                if (user == null)
+                    return NotFound(new ApiResponse<string>(false, "User not found"));
+                
+                return Ok(new ApiResponse<UserDto>(true, "User retrieved", user));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse<string>(false, ex.Message));
+            }
+        }
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UpdateUserRequest request)
-    {
-        var result = await _userService.UpdateUserAsync(id, request);
-        if (!result.Success)
-            return BadRequest(result);
-        
-        return Ok(result);
-    }
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+        {
+            try
+            {
+                var result = await _userService.CreateUserAsync(request);
+                if (!result.Success)
+                    return BadRequest(result);
+                
+                return CreatedAtAction(nameof(GetUser), new { id = result.Data?.Id }, 
+                    new ApiResponse<UserDto>(true, "User created successfully", result.Data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse<string>(false, ex.Message));
+            }
+        }
 
-    [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeleteUser(Guid id)
-    {
-        var result = await _userService.DeleteUserAsync(id);
-        if (!result.Success)
-            return BadRequest(result);
-        
-        return Ok(result);
-    }
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UpdateUserRequest request)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (id != currentUserId && !User.IsInRole("Admin"))
+                    return Forbid();
+                
+                var result = await _userService.UpdateUserAsync(id, request);
+                if (!result.Success)
+                    return BadRequest(result);
+                
+                return Ok(new ApiResponse<UserDto>(true, "User updated successfully", result.Data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse<string>(false, ex.Message));
+            }
+        }
 
-    [HttpPut("change-password")]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
-    {
-        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized();
-        
-        var result = await _userService.ChangePasswordAsync(Guid.Parse(userId), request);
-        if (!result.Success)
-            return BadRequest(result);
-        
-        return Ok(result);
-    }
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteUser(Guid id)
+        {
+            try
+            {
+                var result = await _userService.DeleteUserAsync(id);
+                if (!result.Success)
+                    return BadRequest(result);
+                
+                return Ok(new ApiResponse<bool>(true, "User deleted successfully", result.Data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse<string>(false, ex.Message));
+            }
+        }
 
-    // Add DTO classes if they don't exist elsewhere
-    public class CreateUserRequest
-    {
-        [Required]
-        public string FirstName { get; set; } = string.Empty;
-        
-        [Required]
-        public string LastName { get; set; } = string.Empty;
-        
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = string.Empty;
-        
-        [Required]
-        public string Password { get; set; } = string.Empty;
-        
-        public string[]? Roles { get; set; }
-    }
+        [HttpPut("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var result = await _userService.ChangePasswordAsync(userId, request);
+                if (!result.Success)
+                    return BadRequest(result);
+                
+                return Ok(new ApiResponse<bool>(true, "Password changed successfully", result.Data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse<string>(false, ex.Message));
+            }
+        }
 
-    public class UpdateUserRequest
-    {
-        public string? FirstName { get; set; }
-        public string? LastName { get; set; }
-        public string? Email { get; set; }
-    }
-
-    public class ChangePasswordRequest
-    {
-        [Required]
-        public string CurrentPassword { get; set; } = string.Empty;
-        
-        [Required]
-        [MinLength(6)]
-        public string NewPassword { get; set; } = string.Empty;
-        
-        [Required]
-        [Compare("NewPassword")]
-        public string ConfirmNewPassword { get; set; } = string.Empty;
-    }
-
-    public class UserQuery
-    {
-        public string? Search { get; set; }
-        public int Page { get; set; } = 1;
-        public int PageSize { get; set; } = 10;
-        public string? SortBy { get; set; }
-        public bool SortDescending { get; set; }
+        private Guid GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                throw new UnauthorizedAccessException("User not authenticated");
+            
+            if (!Guid.TryParse(userIdClaim.Value, out var userId))
+                throw new UnauthorizedAccessException("Invalid user ID format");
+            
+            return userId;
+        }
     }
 }
