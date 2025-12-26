@@ -14,6 +14,7 @@ public class AccountService : IAccountService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<AccountService> _logger;
 
+
     public AccountService(
         IAccountRepository accountRepository,
         ITransactionRepository transactionRepository,
@@ -70,6 +71,19 @@ public class AccountService : IAccountService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting user accounts for user {UserId}", userId);
+            throw;
+        }
+    }
+    public async Task<IEnumerable<AccountDto>> GetAllAccountsAsync()
+    {
+        try
+        {
+            var accounts = await _accountRepository.GetAllAsync();
+            return accounts.Select(MapToDto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all accounts");
             throw;
         }
     }

@@ -5,6 +5,7 @@ namespace AbayBank.Domain.Interfaces;
 public interface IAccountRepository
 {
     // Read operations
+    Task<IEnumerable<Account>> GetAllAsync();
     Task<Account?> GetByIdAsync(Guid id);
     Task<Account?> GetByAccountNumberAsync(string accountNumber);
     Task<IEnumerable<Account>> GetByUserIdAsync(Guid userId);

@@ -13,6 +13,10 @@ public class AccountRepository : IAccountRepository
     {
         _context = context;
     }
+    public async Task<IEnumerable<Account>> GetAllAsync()
+    {
+        return await _context.Accounts.ToListAsync();
+    }
 
     public async Task<Account?> GetByIdAsync(Guid id)
     {

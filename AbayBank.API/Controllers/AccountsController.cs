@@ -24,6 +24,26 @@ namespace AbayBank.API.Controllers
 
         // GET: api/accounts
         [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAllAccounts()
+        {
+            try
+            {
+                var accounts = await _accountService.GetAllAccountsAsync();
+
+                return Ok(new ApiResponse<IEnumerable<AccountDto>>(
+                    true, "All accounts retrieved", accounts));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all accounts");
+                return StatusCode(500, new ApiResponse<string>(
+                    false, "Internal server error"));
+            }
+        }
+
+        // GET: api/accounts/my
+        [HttpGet("my")]
         public async Task<IActionResult> GetAccounts()
         {
             try
